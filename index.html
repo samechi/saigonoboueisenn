@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Enterprise Security Monitor - Phase 10</title>
+    <style>
+        :root {
+            --bg: #050608;
+            --panel: #0d1117;
+            --border: #30363d;
+            --accent: #58a6ff;
+            --danger: #f85149;
+            --warning: #d29922;
+            --success: #3fb950;
+            --text: #c9d1d9;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Share Tech Mono', 'Consolas', 'BIZ UDPGothic', 'Meiryo', monospace;
+            margin: 0; padding: 15px;
+            height: 100vh; overflow: hidden;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            grid-template-rows: auto 1fr 180px;
+            gap: 15px; height: 95%;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 15px; display: flex; flex-direction: column;
+            position: relative; overflow: hidden;
+        }
+
+        .analysis-core {
+            grid-column: 2; grid-row: 2;
+            background: radial-gradient(circle at center, rgba(248, 81, 73, 0.03) 0%, transparent 100%);
+            border: 1px solid #442222;
+            padding: 25px;
+        }
+
+        .analysis-screen {
+            font-size: 16px; line-height: 1.8;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-left: 4px solid var(--border);
+            height: 80%;
+            overflow-y: auto;
+        }
+
+        .tag { font-weight: bold; padding: 2px 6px; border-radius: 3px; font-size: 12px; margin-right: 8px; }
+        .tag-crit { background: var(--danger); animation: blink 0.8s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        .sec-steps {
+            display: grid; grid-template-columns: repeat(10, 1fr);
+            gap: 4px; height: 25px; margin: 10px 0;
+        }
+        .step { background: #161b22; border: 1px solid #30363d; transition: 0.3s; }
+
+        .log-box { font-size: 11px; color: #8b949e; flex: 1; overflow: hidden; }
+
+        .packet-row {
+            display: grid;
+            grid-template-columns: 45px 40px 1fr 30px;
+            gap: 5px;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-family: 'Share Tech Mono', monospace;
+            white-space: nowrap;
+        }
+        .p-head { color: var(--accent); font-weight: bold; border-bottom: 1px solid var(--border); margin-bottom: 5px;}
+        .p-danger { color: var(--danger); font-weight: bold; }
+        .p-success { color: var(--success); }
+
+        #device-status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            height: 100%;
+        }
+        .device-box {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-left: 5px solid var(--success);
+            background: rgba(255, 255, 255, 0.02);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .dev-name {
+            color: #8b949e; 
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-bottom: 2px;
+        }
+        .st-label {
+            font-size: 15px; 
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="card" style="grid-column: 1 / 4; flex-direction: row; justify-content: space-between; align-items: center; height: 40px;">
+        <div style="font-weight: bold; letter-spacing: 2px;">統合セキュリティ監視システム - NODE_ALPHA</div>
+        <div id="clock">2026-01-05 20:15:30</div>
+        <div id="global-status" style="color: var(--success);">● システム正常稼働中</div>
+    </div>
+
+    <div class="card">
+        <div style="font-size: 11px; color: #8b949e;">SECURITY_LEVEL_MATRIX</div>
+        <div id="lv-text" style="font-size: 24px; font-weight: bold; margin: 5px 0;">LEVEL 01</div>
+        <div class="sec-steps" id="sec-steps"></div>
+        <div id="protocol" style="font-size: 12px; color: var(--success);">プロトコル: 常時監視モード</div>
+        
+        <div class="log-box" id="internal-log" style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 10px;">
+            <div>> セキュリティカーネル起動完了</div>
+        </div>
+    </div>
+
+    <div class="card analysis-core">
+        <div style="font-size: 13px; color: #8b949e; margin-bottom: 10px; display: flex; justify-content: space-between;">
+            <span>リアルタイム脅威解析レポート</span>
+            <span id="threat-id">ID: NONE</span>
+        </div>
+        <div id="analysis-screen" class="analysis-screen">
+            <div style="color: #666;">> ネットワークトラフィックを走査中...</div>
+            <div style="color: #666;">> 異常なし。待機しています。</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="font-size: 11px; color: #8b949e; margin-bottom: 5px;">外部トラフィック・ログ</div>
+        <div class="packet-row p-head">
+            <span>TIME</span><span>PROT</span><span>SOURCE_IP</span><span>ST</span>
+        </div>
+        <div class="log-box" id="traffic-log"></div>
+    </div>
+
+    <div class="card" style="grid-column: 1 / 3; flex-direction: row; gap: 40px;">
+        <div>
+            <div style="font-size: 10px; color: #8b949e;">CPU負荷</div>
+            <div style="font-size: 28px; font-weight: bold;" id="cpu-val">12.0%</div>
+        </div>
+        <div>
+            <div style="font-size: 10px; color: #8b949e;">消費電力</div>
+            <div style="font-size: 28px; font-weight: bold;" id="pwr-val">312W</div>
+        </div>
+        <div style="flex:1">
+            <div style="font-size: 10px; color: #8b949e; margin-bottom: 8px;">重要設備インフラ・ネットワーク</div>
+            <div id="device-status-grid">
+                <div class="device-box" id="dev-fw">
+                    <span class="dev-name">境界ファイアウォール</span>
+                    <span class="st-label">監視中</span>
+                </div>
+                <div class="device-box" id="dev-db">
+                    <span class="dev-name">基幹データベース</span>
+                    <span class="st-label">正常稼働</span>
+                </div>
+                <div class="device-box" id="dev-gw">
+                    <span class="dev-name">外部接続ゲートウェイ</span>
+                    <span class="st-label">オンライン</span>
+                </div>
+                <div class="device-box" id="dev-auth">
+                    <span class="dev-name">認証サーバー</span>
+                    <span class="st-label">保護有効</span>
+                </div>
+                <div class="device-box" id="dev-str">
+                    <span class="dev-name">暗号化ストレージ</span>
+                    <span class="st-label">マウント済</span>
+                </div>
+                <div class="device-box" id="dev-api">
+                    <span class="dev-name">基幹システムAPI</span>
+                    <span class="st-label">待機中</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="font-size: 11px; color: #8b949e;">現在のアクティブセッション</div>
+        <div id="user-list" style="font-size: 11px; margin-top: 10px;">root, admin_04, backup_bot</div>
+    </div>
+</div>
+
+<script>
+    let currentLv = 1;
+    let isAttacked = false;
+
+    // 日本語のステータス設定
+    const deviceConfig = {
+        'dev-fw':   { normal: '監視中',   warn: 'パケット精査', crit: '全遮断' },
+        'dev-db':   { normal: '正常稼働', warn: '整合性修復',   crit: '読込専用' },
+        'dev-gw':   { normal: 'オンライン', warn: '通信帯域制限', crit: '強制隔離' },
+        'dev-auth': { normal: '保護有効', warn: '多要素認証',   crit: '完全ロック' },
+        'dev-str':  { normal: 'マウント済', warn: '再暗号化中',   crit: 'オフライン' },
+        'dev-api':  { normal: '待機中',   warn: '流量制限',     crit: '接続拒否' }
+    };
+
+    const stepsCont = document.getElementById('sec-steps');
+    for(let i=1; i<=10; i++) {
+        const s = document.createElement('div');
+        s.className = 'step'; s.id = `step-${i}`;
+        stepsCont.appendChild(s);
+    }
+
+    const threatData = {
+        attackers: ["Anonymous_Proxy", "BotNet_Omega", "Unknown_Actor_X"],
+        locations: ["ロシア連邦", "北朝鮮", "オランダ", "中国"],
+        methods: ["総当たり攻撃", "SQLインジェクション", "DDoSフラッド", "ゼロデイ"],
+        targets: ["ユーザーデータベース", "コア・カーネルメモリ", "認証API", "暗号化ストレージ"]
+    };
+
+    function updateSecurity(lv) {
+        currentLv = Math.max(1, Math.min(10, lv));
+        let color = 'var(--success)';
+        if(currentLv >= 9) color = 'var(--danger)';
+        else if(currentLv >= 7) color = '#ff7b72';
+        else if(currentLv >= 4) color = 'var(--warning)';
+        else if(currentLv >= 2) color = '#d29922';
+
+        document.getElementById('lv-text').innerText = `LEVEL ${currentLv.toString().padStart(2, '0')}`;
+        document.getElementById('lv-text').style.color = color;
+        document.getElementById('global-status').style.color = color;
+        document.getElementById('global-status').innerText = currentLv > 1 ? "● 脅威を検知・対応中" : "● システム正常稼働中";
+
+        for(let i=1; i<=10; i++) {
+            const s = document.getElementById(`step-${i}`);
+            s.style.backgroundColor = i <= currentLv ? color : '#161b22';
+            s.style.boxShadow = i <= currentLv ? `0 0 10px ${color}` : 'none';
+        }
+
+        updateDevices();
+    }
+
+    function updateDevices() {
+        Object.keys(deviceConfig).forEach(id => {
+            const el = document.getElementById(id);
+            const label = el.querySelector('.st-label');
+            const cfg = deviceConfig[id];
+
+            if (!isAttacked) {
+                el.style.borderLeftColor = 'var(--success)';
+                label.innerText = `● ${cfg.normal}`;
+                label.style.color = 'var(--success)';
+                el.style.background = "rgba(255, 255, 255, 0.02)";
+            } else {
+                if (currentLv >= 8) {
+                    el.style.borderLeftColor = 'var(--danger)';
+                    label.innerText = `✖ ${cfg.crit}`;
+                    label.style.color = 'var(--danger)';
+                    el.style.background = "rgba(248, 81, 73, 0.08)";
+                } else if (currentLv >= 4) {
+                    el.style.borderLeftColor = 'var(--warning)';
+                    label.innerText = `▲ ${cfg.warn}`;
+                    label.style.color = 'var(--warning)';
+                    el.style.background = "rgba(210, 153, 34, 0.08)";
+                } else {
+                    el.style.borderLeftColor = 'var(--accent)';
+                    label.innerText = `● 解析中...`;
+                    label.style.color = 'var(--accent)';
+                    el.style.background = "rgba(88, 166, 255, 0.05)";
+                }
+            }
+        });
+    }
+
+    function triggerAttack() {
+        isAttacked = true;
+        const target = threatData.targets[Math.floor(Math.random()*threatData.targets.length)];
+        document.getElementById('threat-id').innerText = `ID: ${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+        
+        const screen = document.getElementById('analysis-screen');
+        screen.innerHTML = `<div style="color:var(--danger); font-weight:bold;">[警告] 侵入試行検知: ${target}</div><div id="live-report" style="font-size:12px; margin-top:10px;">> トラフィック解析開始...</div>`;
+
+        let lv = 1;
+        const up = setInterval(() => {
+            lv++;
+            updateSecurity(lv);
+            if(lv === 5) document.getElementById('live-report').innerHTML += `<br>> [警告] 異常パケット増大。プロトコル制限を開始。`;
+            if(lv >= 9 || !isAttacked) {
+                clearInterval(up);
+                setTimeout(coolDown, 8000);
+            }
+        }, 1000);
+    }
+
+    function coolDown() {
+        isAttacked = false;
+        document.getElementById('analysis-screen').innerHTML = `<div style="color:var(--success); font-weight:bold;">>>> 脅威を排除。安定稼働に移行。</div>`;
+        let lv = currentLv;
+        const down = setInterval(() => {
+            lv--;
+            updateSecurity(lv);
+            if(lv <= 1) clearInterval(down);
+        }, 1000);
+    }
+
+    function addPacketLog() {
+        const log = document.getElementById('traffic-log');
+        const row = document.createElement('div');
+        row.className = 'packet-row';
+        const time = new Date().toLocaleTimeString('ja-JP', {hour12:false}).split(':').slice(1).join(':');
+        let ip = isAttacked ? `45.12.${Math.floor(Math.random()*255)}.XX` : `192.168.1.${Math.floor(Math.random()*255)}`;
+        row.innerHTML = `<span>${time}</span><span>TCP</span><span>${ip}</span><span>${isAttacked ? '拒絶' : '通過'}</span>`;
+        log.prepend(row);
+        if (log.children.length > 25) log.lastChild.remove();
+    }
+
+    setInterval(() => {
+        const now = new Date();
+        document.getElementById('clock').innerText = now.getFullYear() + "-" + 
+            String(now.getMonth() + 1).padStart(2, '0') + "-" + 
+            String(now.getDate()).padStart(2, '0') + " " + 
+            now.toLocaleTimeString('ja-JP', {hour12:false});
+            
+        document.getElementById('cpu-val').innerText = (Math.random()*5 + (isAttacked ? 80 : 12)).toFixed(1) + "%";
+        document.getElementById('pwr-val').innerText = Math.floor(Math.random()*20 + (isAttacked ? 580 : 310)) + "W";
+        addPacketLog();
+        if(!isAttacked && Math.random() > 0.99) triggerAttack();
+    }, 1000);
+
+    updateSecurity(1);
+</script>
+</body>
+</html>
